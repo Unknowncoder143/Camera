@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Face Detection with TensorFlow.js</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
+  <style>
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    video {
+      position: absolute;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" width="640" height="480" autoplay></video>
+  <canvas id="canvas" width="640" height="480"></canvas>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+
+    // Load the BlazeFace model and start the video stream
+    async function loadModel() {
+      const model = await blazeface.load();
+
+      // Start video stream
+      navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+        video.srcObject = stream;
+        video.onloadedmetadata = () => {
+          video.play();
+          detectFaces(model);
+        };
+      });
+    }
+
+    // Detect faces in the video stream
+    async function detectFaces(model) {
+      const predictions = await model.estimateFaces(video, false);
+
+      // Clear previous canvas drawings
+      context.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (predictions.length > 0) {
+        predictions.forEach((prediction) => {
+          const [x, y, width, height] = prediction.topLeft.concat(prediction.bottomRight);
+          context.beginPath();
+          context.rect(x, y, width - x, height - y);
+          context.lineWidth = 2;
+          context.strokeStyle = 'red';
+          context.stroke();
+        });
+      }
+
+      // Continuously detect faces
+      requestAnimationFrame(() => detectFaces(model));
+    }
+
+    // Start the process
+    loadModel();
+  </script>
+</body>
+</html>
