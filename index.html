@@ -3,67 +3,87 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Face Detection with TensorFlow.js</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
+  <title>Off-Camera Reflection</title>
   <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #222;
+      margin: 0;
+      color: #fff;
+      flex-direction: column;
+    }
+
+    .container {
+      position: relative;
+    }
+
+    video {
+      width: 320px;
+      height: 240px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+
     canvas {
       position: absolute;
-      top: 0;
-      left: 0;
-    }
-    video {
-      position: absolute;
+      top: 120%; /* Shift reflection downward */
+      left: 20%; /* Shift reflection horizontally */
+      transform: scaleY(-1); /* Flip vertically */
+      opacity: 0.6; /* Transparent effect */
     }
   </style>
 </head>
 <body>
-  <video id="video" width="640" height="480" autoplay></video>
-  <canvas id="canvas" width="640" height="480"></canvas>
+  <h1>Webcam with Off-Camera Reflection</h1>
+  <div class="container">
+    <video id="webcam" autoplay></video>
+    <canvas id="reflection"></canvas>
+  </div>
 
   <script>
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const context = canvas.getContext('2d');
+    const video = document.getElementById('webcam');
+    const canvas = document.getElementById('reflection');
+    const ctx = canvas.getContext('2d');
 
-    // Load the BlazeFace model and start the video stream
-    async function loadModel() {
-      const model = await blazeface.load();
-
-      // Start video stream
-      navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+    // Access user's webcam
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then((stream) => {
         video.srcObject = stream;
-        video.onloadedmetadata = () => {
-          video.play();
-          detectFaces(model);
-        };
-      });
-    }
 
-    // Detect faces in the video stream
-    async function detectFaces(model) {
-      const predictions = await model.estimateFaces(video, false);
-
-      // Clear previous canvas drawings
-      context.clearRect(0, 0, canvas.width, canvas.height);
-
-      if (predictions.length > 0) {
-        predictions.forEach((prediction) => {
-          const [x, y, width, height] = prediction.topLeft.concat(prediction.bottomRight);
-          context.beginPath();
-          context.rect(x, y, width - x, height - y);
-          context.lineWidth = 2;
-          context.strokeStyle = 'red';
-          context.stroke();
+        // Set canvas size to match video
+        video.addEventListener('loadeddata', () => {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
         });
-      }
 
-      // Continuously detect faces
-      requestAnimationFrame(() => detectFaces(model));
-    }
+        // Update reflection in real-time
+        video.addEventListener('play', () => {
+          function drawReflection() {
+            // Draw the mirrored webcam feed
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Start the process
-    loadModel();
+            // Apply fading gradient for realism
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, 'rgba(0, 0, 0, 0.5)');
+            gradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Keep the reflection dynamic
+            if (!video.paused && !video.ended) {
+              requestAnimationFrame(drawReflection);
+            }
+          }
+          drawReflection();
+        });
+      })
+      .catch((err) => {
+        console.error('Error accessing webcam:', err);
+        alert('Webcam access is required to see the effect.');
+      });
   </script>
 </body>
 </html>
